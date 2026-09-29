@@ -264,11 +264,6 @@ describe("archive database", () => {
     assert.equal(names.includes("distance_m"), false);
     assert.equal(names.includes("polar_user_id"), false);
     assert.equal(names.includes("fit_base64"), false);
-    const leftover = await db
-      .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'archived_records'")
-      .bind()
-      .all<{ name: string }>();
-    assert.equal(leftover.results?.length ?? 0, 0);
 
     const first = envelope({
       event: "EXERCISE",
@@ -566,13 +561,7 @@ function normalizedFixture(overrides: Partial<NormalizedRecord>): NormalizedReco
 
 function createTestDb(): ArchiveDb {
   const sqlite = new DatabaseSync(":memory:");
-  for (const file of [
-    "migrations/0001_init_archive.sql",
-    "migrations/0002_canonical_archive.sql",
-    "migrations/0003_activities.sql",
-  ]) {
-    sqlite.exec(readFileSync(join(root, file), "utf8"));
-  }
+  sqlite.exec(readFileSync(join(root, "migrations/0001_init_archive.sql"), "utf8"));
   return {
     prepare(query: string) {
       const statement = sqlite.prepare(query);

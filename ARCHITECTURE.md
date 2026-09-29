@@ -66,7 +66,7 @@ Webhook `event` values become `event_kind` in `src/providers/polar/mapper.ts` (`
 | `distance` | `distance` (meters) |
 | `calories` | `calories` |
 | `avg_hr` / `max_hr` | `heart_rate.average` / `maximum`, or kebab-case `heart-rate` |
-| `avg_speed` / `max_speed` | Not on the exercise summary. Computed from sample type `1` (Speed, km/h) when `samples=true`. A `speed.average` / `speed.maximum` object is used if a payload includes one. |
+| `avg_speed` / `max_speed` | Speed sample series, type `1`, unit km/h. The exercise summary has no speed stats. Heart-rate zones, route points, and `running-index` are not speeds. A `speed.average` / `speed.maximum` object is used if a payload includes one. |
 | `title` | `title` or `name` |
 | `normalized.extras` | `device`, `upload_time`, `has_route`, `training_load`, `steps`, `active_steps`, `calendar_date` |
 
