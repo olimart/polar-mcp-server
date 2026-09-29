@@ -14,9 +14,10 @@ POST /webhook
 
 HTTP entry: `src/webhook/handle.ts` (thin Polar wiring) and `src/archive/ingest.ts` (no provider field names).  
 Polar adapter: `src/providers/polar/adapter.ts`.  
-Mapper: `src/providers/polar/mapper.ts`.  
+Polar mapper: `src/providers/polar/mapper.ts`.  
+Strava backfill: `src/providers/strava/mapper.ts` (`adaptStravaActivity`) then `archiveMapped` in `src/archive/apply.ts`.  
 Repository: `src/archive/repository.ts`.  
-Providers are registered in `src/providers/registry.ts`.
+Webhook providers are registered in `src/providers/registry.ts`.
 
 OAuth tokens stay in `OAUTH_KV`. The archive never stores access tokens.
 
@@ -24,7 +25,7 @@ OAuth tokens stay in `OAUTH_KV`. The archive never stores access tokens.
 
 | Column | Meaning |
 | --- | --- |
-| `source` | Provider id. Polar rows use `polar`. |
+| `source` | Provider id. Polar rows use `polar`. Strava rows use `strava`. |
 | `source_user_id` | User id in that provider. |
 | `source_entity_id` | Stable id for the entity (exercise id, calendar date, or `from_to`). |
 | `event_kind` | Lowercase kind: `exercise`, `sleep`, `activity_summary`, `continuous_heart_rate`, `physical_information`, `sleep_wise_alertness`, `sleep_wise_circadian_bedtime`. |
@@ -78,3 +79,28 @@ Webhook `event` values become `event_kind` in `src/providers/polar/mapper.ts` (`
 Exercise fetch URLs are built from the entity id (`/v3/exercises/{id}`), not from the webhook `url`, so a signed body cannot point the worker at another host. Daily activity, sleep, and continuous heart rate use the AccessLink date path when the entity id is `YYYY-MM-DD`.
 
 The AccessLink subscription API still uses Polar's uppercase event names (`EXERCISE`). That is the partner webhook API, not the archive schema. MCP archive tools accept either form and store the canonical kind.
+
+## Strava mapping
+
+`adaptStravaActivity` in `src/providers/strava/mapper.ts` turns one Strava activity into the same columns. `npm run strava:import` pages through `GET /athlete/activities` and writes each row with `archiveMapped`. Polar does not provide history from before the user registered with this client, so this backfill is the historic copy.
+
+| Canonical field | Strava activity |
+| --- | --- |
+| `source` | `strava` |
+| `source_user_id` | `athlete.id` |
+| `source_entity_id` | `id` |
+| `event_kind` | `exercise` |
+| `started_at` | `start_date` (UTC) |
+| `ended_at` | `start_date` + `elapsed_time` |
+| `duration_sec` | `elapsed_time` (falls back to `moving_time`) |
+| `activity_type` | `sport_type`, else `type` |
+| `distance` | `distance` (meters) |
+| `calories` | `calories` when present, otherwise `kilojoules / 4.184` |
+| `avg_hr` / `max_hr` | `average_heartrate` / `max_heartrate` |
+| `avg_speed` / `max_speed` | `average_speed` / `max_speed` converted from m/s to km/h |
+| `min_elevation` / `max_elevation` | `elev_low` / `elev_high` (meters) |
+| `ascent` | `total_elevation_gain` (meters). Strava summaries have no descent. |
+| `title` | `name` |
+| `normalized.extras` | `moving_time`, `elapsed_time`, `kilojoules`, `commute`, `trainer`, `manual`, `gear_id`, `timezone`, `start_date_local`, `has_heartrate` |
+
+The unmodified activity JSON is `raw_payload`. Map polylines and lap arrays are bulky keys the packer may drop. FIT, TCX, and GPX are not downloaded for Strava.

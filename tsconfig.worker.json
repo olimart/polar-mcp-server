@@ -11,5 +11,5 @@
     "lib": ["ES2022"]
   },
   "include": ["src/worker.ts", "src/polar-api.ts", "src/types.ts", "src/auth/**/*.ts", "src/webhook/**/*.ts", "src/archive/**/*.ts", "src/providers/**/*.ts"],
-  "exclude": ["node_modules", "src/webhook/register-cli.ts"]
+  "exclude": ["node_modules", "src/webhook/register-cli.ts", "src/providers/strava/import-cli.ts"]
 }

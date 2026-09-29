@@ -51,7 +51,7 @@ The remote deployment is managed via Cloudflare Workers and Wrangler. Configurat
 
 ### Tests and linting
 
-- `npm test` runs `node --import tsx --test test/webhook.test.ts` (Node's test runner, no extra dependency). It covers webhook signatures, payload parsing, and the D1 archive SQL via `node:sqlite`. It does not call Polar.
+- `npm test` runs `node --import tsx --test test/*.test.ts` (Node's test runner, no extra dependency). It covers webhook signatures, payload parsing, the Strava activity adapter, and the D1 archive SQL via `node:sqlite`. It does not call Polar or Strava.
 - `npm run typecheck` runs `tsc --noEmit` and `tsc -p tsconfig.worker.json --noEmit`.
 - There is no ESLint script.
 

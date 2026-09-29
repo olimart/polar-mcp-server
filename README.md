@@ -224,6 +224,28 @@ curl -i -X POST http://localhost:8787/webhook \
 
 Expect `HTTP/1.1 200`. After the signature secret is set, that unsigned PING returns 401. Sign the exact raw body with HMAC-SHA256, as in `test/webhook.test.ts`.
 
+## Strava history
+
+Polar will not return sessions from before the user registered with this client. Strava's activity list is the historic backfill. `src/providers/strava/mapper.ts` maps each activity onto the same `activities` columns (`source = strava`). Speeds are converted from m/s to km/h. See [ARCHITECTURE.md](ARCHITECTURE.md).
+
+```bash
+# Writes a local sqlite file. Nothing is sent to Cloudflare.
+export STRAVA_ACCESS_TOKEN="your_strava_access_token"
+npm run strava:import -- --sqlite ./strava.sqlite
+
+# Or refresh a token, then write to remote D1 (needs a real database_id in wrangler.toml):
+export STRAVA_CLIENT_ID="..."
+export STRAVA_CLIENT_SECRET="..."
+export STRAVA_REFRESH_TOKEN="..."
+export CLOUDFLARE_ACCOUNT_ID="..."
+export CLOUDFLARE_API_TOKEN="..."
+npm run strava:import
+
+npm run strava:import -- --dry-run
+```
+
+Do not commit those tokens. The script prints counts only. Re-running it updates the same Strava activity ids in place.
+
 ## API Reference
 
 All tools use the [Polar AccessLink API v3](https://www.polar.com/accesslink-api/).

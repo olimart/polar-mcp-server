@@ -4,9 +4,9 @@
 
 import type { FetchNormalizedResult } from "../providers/types.js";
 import type { ArchiveDb } from "./db.js";
-import type { ArchiveIngest } from "./model.js";
+import type { ArchiveIngest, NormalizedRecord } from "./model.js";
 import { packStoredRecord } from "./pack.js";
-import { markArchiveStatus, saveArchived } from "./repository.js";
+import { markArchiveStatus, saveArchived, upsertPending } from "./repository.js";
 
 export async function applyFetchResult(
   db: ArchiveDb,
@@ -26,4 +26,17 @@ export async function applyFetchResult(
   }
   await markArchiveStatus(db, ingest, "failed", result.error, { terminal: result.terminal });
   return "failed";
+}
+
+/** Insert or replace one fully mapped activity. Used by backfill adapters. */
+export async function archiveMapped(db: ArchiveDb, ingest: ArchiveIngest, normalized: NormalizedRecord): Promise<void> {
+  await upsertPending(db, ingest);
+  await saveArchived(
+    db,
+    ingest,
+    packStoredRecord({
+      normalized,
+      rawEnvelopeChars: ingest.rawEnvelope.length,
+    })
+  );
 }
