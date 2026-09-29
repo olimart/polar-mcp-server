@@ -7,6 +7,13 @@ export const POLAR_API_BASE = "https://www.polaraccesslink.com/v3";
 export const POLAR_AUTH_URL = "https://flow.polar.com/oauth2/authorization";
 export const POLAR_TOKEN_URL = "https://polarremote.com/v2/oauth2/token";
 
+export function encodeBasicAuth(clientId: string, clientSecret: string): string {
+  const bytes = new TextEncoder().encode(`${clientId}:${clientSecret}`);
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary);
+}
+
 export interface PolarTokenResponse {
   access_token: string;
   token_type: string;
@@ -54,7 +61,7 @@ export async function exchangeCodeForToken(
   clientSecret: string,
   redirectUri: string
 ): Promise<PolarTokenResponse> {
-  const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
+  const credentials = encodeBasicAuth(clientId, clientSecret);
 
   const response = await fetch(POLAR_TOKEN_URL, {
     method: "POST",

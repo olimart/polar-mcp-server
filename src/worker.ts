@@ -13,6 +13,9 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { polarApiRequest } from "./polar-api.js";
 import { PolarHandler } from "./auth/polar-handler.js";
+import { registerArchiveTools } from "./webhook/mcp-tools.js";
+import { retryIncompleteArchives } from "./webhook/retry.js";
+import { sanitizeErrorMessage } from "./archive/errors.js";
 import type { Env, Props } from "./types.js";
 
 export { Env, Props };
@@ -24,8 +27,12 @@ export class MyMCP extends McpAgent<Env, Record<string, never>, Props> {
   });
 
   async init() {
-    const accessToken = this.props.accessToken;
-    const userId = this.props.userId;
+    const props = this.props;
+    if (!props) {
+      throw new Error("Polar authorization is missing");
+    }
+    const accessToken = props.accessToken;
+    const userId = props.userId;
 
     // Tool: Get User Info
     this.server.tool(
@@ -693,10 +700,12 @@ export class MyMCP extends McpAgent<Env, Record<string, never>, Props> {
         }
       }
     );
+
+    registerArchiveTools(this.server, this.env, userId);
   }
 }
 
-export default new OAuthProvider({
+const oauthProvider = new OAuthProvider({
   apiHandlers: {
     "/sse": MyMCP.serveSSE("/sse") as any,
     "/mcp": MyMCP.serve("/mcp") as any,
@@ -706,3 +715,19 @@ export default new OAuthProvider({
   tokenEndpoint: "/token",
   clientRegistrationEndpoint: "/register",
 });
+
+export default {
+  fetch(request: Request, env: Env, ctx: ExecutionContext) {
+    return oauthProvider.fetch(request, env, ctx);
+  },
+  scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext) {
+    ctx.waitUntil(
+      retryIncompleteArchives({
+        db: env.ARCHIVE_DB,
+        kv: env.OAUTH_KV,
+      }).catch((error: unknown) => {
+        console.error("archive retry failed", sanitizeErrorMessage(error));
+      })
+    );
+  },
+};

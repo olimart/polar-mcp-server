@@ -8,6 +8,14 @@ compatibility_flags = ["nodejs_compat"]
 binding = "OAUTH_KV"
 id = "d7e22f1f9da848748b1249a6971f61ca"
 
+# D1 archive of webhook deliveries. Create the database, paste its id, then migrate:
+#   npx wrangler d1 create polar-archive
+#   npx wrangler d1 migrations apply polar-archive --remote
+[[d1_databases]]
+binding = "ARCHIVE_DB"
+database_name = "polar-archive"
+database_id = "90e88692-5151-464e-95b5-25f93c91b913"
+
 # Durable Objects for MCP sessions
 [durable_objects]
 bindings = [{ name = "MCP_OBJECT", class_name = "MyMCP" }]
@@ -16,12 +24,16 @@ bindings = [{ name = "MCP_OBJECT", class_name = "MyMCP" }]
 tag = "v1"
 new_sqlite_classes = ["MyMCP"]
 
-# Environment variables (set via wrangler secret)
-# wrangler secret put POLAR_CLIENT_ID
-# wrangler secret put POLAR_CLIENT_SECRET
+# Retry webhook fetches that failed after Polar was already acknowledged.
+[triggers]
+crons = ["*/15 * * * *"]
 
+# Secrets (never commit values):
+#   npx wrangler secret put POLAR_CLIENT_ID
+#   npx wrangler secret put POLAR_CLIENT_SECRET
+#   npx wrangler secret put POLAR_WEBHOOK_SIGNATURE_SECRET
 [vars]
-# Non-sensitive variables can go here
+WEBHOOK_BASE_URL = "https://polar-mcp-server.yafoy.workers.dev"
 
 # Development settings
 [env.dev]
@@ -31,9 +43,20 @@ name = "polar-mcp-server-dev"
 binding = "OAUTH_KV"
 id = "YOUR_DEV_KV_NAMESPACE_ID"  # Replace after creating: wrangler kv namespace create OAUTH_KV --env dev
 
+[[env.dev.d1_databases]]
+binding = "ARCHIVE_DB"
+database_name = "polar-archive-dev"
+database_id = "00000000-0000-0000-0000-000000000000"
+
 [env.dev.durable_objects]
 bindings = [{ name = "MCP_OBJECT", class_name = "MyMCP" }]
 
 [[env.dev.migrations]]
 tag = "v1"
 new_sqlite_classes = ["MyMCP"]
+
+[env.dev.triggers]
+crons = ["*/15 * * * *"]
+
+[env.dev.vars]
+WEBHOOK_BASE_URL = "https://polar-mcp-server.yafoy.workers.dev"
