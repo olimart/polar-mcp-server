@@ -33,10 +33,15 @@ export interface NormalizedRecord {
   endedAt: string | null;
   durationSec: number | null;
   activityType: string | null;
-  distanceM: number | null;
+  /** Meters. */
+  distance: number | null;
   calories: number | null;
   avgHr: number | null;
   maxHr: number | null;
+  /** Kilometers per hour. */
+  avgSpeed: number | null;
+  /** Kilometers per hour. */
+  maxSpeed: number | null;
   title: string | null;
   /** Self-contained canonical document stored in the normalized column. */
   document: Record<string, unknown>;
@@ -56,10 +61,12 @@ export interface PackedRecord {
   endedAt: string | null;
   durationSec: number | null;
   activityType: string | null;
-  distanceM: number | null;
+  distance: number | null;
   calories: number | null;
   avgHr: number | null;
   maxHr: number | null;
+  avgSpeed: number | null;
+  maxSpeed: number | null;
   title: string | null;
 }
 
@@ -74,10 +81,12 @@ export interface ArchiveListItem {
   ended_at: string | null;
   duration_sec: number | null;
   activity_type: string | null;
-  distance_m: number | null;
+  distance: number | null;
   calories: number | null;
   avg_hr: number | null;
   max_hr: number | null;
+  avg_speed: number | null;
+  max_speed: number | null;
   title: string | null;
   status: string;
   error: string | null;

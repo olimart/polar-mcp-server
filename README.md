@@ -152,9 +152,9 @@ npm run db:migrate
 npm run db:migrate:local
 ```
 
-Schema lives in `migrations/0001_init_archive.sql` (and `0002_canonical_archive.sql` if an earlier draft of `0001` already created `archived_events`). Rows use canonical columns — `source`, `source_user_id`, `source_entity_id`, `event_kind`, `started_at`, and so on — plus `raw_payload` and `normalized` JSON. Polar field names are mapped in `src/providers/polar/mapper.ts` before anything is written. See [ARCHITECTURE.md](ARCHITECTURE.md).
+Schema lives in `migrations/0001_init_archive.sql`. The table is `activities`. Rows use canonical columns — `source`, `source_user_id`, `source_entity_id`, `event_kind`, `started_at`, `distance` (meters), `avg_speed` / `max_speed` (km/h), and so on — plus `raw_payload` and `normalized` JSON. Polar field names are mapped in `src/providers/polar/mapper.ts` before anything is written. See [ARCHITECTURE.md](ARCHITECTURE.md).
 
-If a local database still has the first draft table, run `npm run db:migrate:local` again so `0002` creates `archived_records` and drops `archived_events`.
+`0002_canonical_archive.sql` and `0003_activities.sql` move databases that already applied an earlier draft (`archived_events` or `archived_records`) onto `activities`. Run `npm run db:migrate:local` again after pulling. Polar does not send average or max speed as summary fields; those columns are filled from the speed sample series (sample type 1, km/h).
 
 ### 2. Deploy the receiver first
 

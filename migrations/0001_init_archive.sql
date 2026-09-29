@@ -1,8 +1,10 @@
 -- Canonical archive. Column names are provider-neutral.
 -- Polar (or a future source) is mapped into these fields before insert.
 -- See ARCHITECTURE.md. OAuth tokens stay in OAUTH_KV.
+--
+-- distance is meters. avg_speed and max_speed are km/h.
 
-CREATE TABLE IF NOT EXISTS archived_records (
+CREATE TABLE IF NOT EXISTS activities (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   source TEXT NOT NULL,
   source_user_id TEXT NOT NULL,
@@ -18,10 +20,12 @@ CREATE TABLE IF NOT EXISTS archived_records (
   ended_at TEXT,
   duration_sec INTEGER,
   activity_type TEXT,
-  distance_m REAL,
+  distance REAL,
   calories INTEGER,
   avg_hr INTEGER,
   max_hr INTEGER,
+  avg_speed REAL,
+  max_speed REAL,
   title TEXT,
   artifacts_json TEXT,
   status TEXT NOT NULL,
@@ -32,8 +36,8 @@ CREATE TABLE IF NOT EXISTS archived_records (
   UNIQUE (source, source_user_id, event_kind, source_entity_id)
 );
 
-CREATE INDEX IF NOT EXISTS idx_archived_records_user_kind_time
-  ON archived_records (source, source_user_id, event_kind, started_at);
+CREATE INDEX IF NOT EXISTS idx_activities_user_kind_time
+  ON activities (source, source_user_id, event_kind, started_at);
 
-CREATE INDEX IF NOT EXISTS idx_archived_records_status
-  ON archived_records (status, updated_at);
+CREATE INDEX IF NOT EXISTS idx_activities_status
+  ON activities (status, updated_at);

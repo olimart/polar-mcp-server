@@ -134,7 +134,9 @@ describe("webhook payloads", () => {
     assert.equal(mapped.startedAt, "2008-10-13T10:40:02");
     assert.equal(mapped.durationSec, 9840);
     assert.equal(mapped.endedAt, "2008-10-13T13:24:02");
-    assert.equal(mapped.distanceM, 1600);
+    assert.equal(mapped.distance, 1600);
+    assert.equal(mapped.avgSpeed, null);
+    assert.equal(mapped.maxSpeed, null);
     assert.equal(mapped.calories, 530);
     assert.equal(mapped.avgHr, 129);
     assert.equal(mapped.maxHr, 147);
@@ -159,6 +161,31 @@ describe("webhook payloads", () => {
     assert.equal(offset.maxHr, 120);
     assert.equal(offset.startedAt, "2008-10-13T07:40:02.000Z");
     assert.equal(offset.endedAt, "2008-10-13T10:24:02.000Z");
+
+    const withSamples = mapPolarEntity(
+      ingest,
+      {
+        distance: 8000,
+        samples: [
+          { "sample-type": "0", data: "140,150" },
+          { "sample-type": "1", data: "10,null,20,30" },
+        ],
+      },
+      []
+    );
+    assert.equal(withSamples.avgSpeed, 20);
+    assert.equal(withSamples.maxSpeed, 30);
+
+    const summarized = mapPolarEntity(
+      ingest,
+      {
+        speed: { average: 9.25, maximum: 15 },
+        samples: [{ sample_type: 1, data: "1,2,3" }],
+      },
+      []
+    );
+    assert.equal(summarized.avgSpeed, 9.25);
+    assert.equal(summarized.maxSpeed, 15);
   });
 
   it("drops artifacts that would exceed the D1 row budget", () => {
@@ -226,13 +253,22 @@ describe("webhook registration parsing", () => {
 describe("archive database", () => {
   it("applies the migration and upserts one row per source, user, kind, and entity", async () => {
     const db = createTestDb();
-    const columns = await db.prepare("PRAGMA table_info(archived_records)").bind().all<{ name: string }>();
+    const columns = await db.prepare("PRAGMA table_info(activities)").bind().all<{ name: string }>();
     const names = (columns.results ?? []).map((column) => column.name);
     assert.ok(names.includes("source"));
     assert.ok(names.includes("raw_payload"));
     assert.ok(names.includes("normalized"));
+    assert.ok(names.includes("distance"));
+    assert.ok(names.includes("avg_speed"));
+    assert.ok(names.includes("max_speed"));
+    assert.equal(names.includes("distance_m"), false);
     assert.equal(names.includes("polar_user_id"), false);
     assert.equal(names.includes("fit_base64"), false);
+    const leftover = await db
+      .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'archived_records'")
+      .bind()
+      .all<{ name: string }>();
+    assert.equal(leftover.results?.length ?? 0, 0);
 
     const first = envelope({
       event: "EXERCISE",
@@ -250,7 +286,7 @@ describe("archive database", () => {
     });
     await upsertPending(db, parsePolarWebhook(JSON.parse(first), first)!.ingest, new Date("2024-01-01T00:00:00.000Z"));
     await upsertPending(db, parsePolarWebhook(JSON.parse(second), second)!.ingest, new Date("2024-01-02T00:00:00.000Z"));
-    const count = await db.prepare("SELECT COUNT(*) AS count FROM archived_records").bind().first<{ count: number }>();
+    const count = await db.prepare("SELECT COUNT(*) AS count FROM activities").bind().first<{ count: number }>();
     assert.equal(count?.count, 1);
     const row = await getArchivedRecord(db, {
       source: "polar",
@@ -315,6 +351,7 @@ describe("POST /webhook", () => {
         distance: 8000,
         calories: 610,
         heart_rate: { average: 148, maximum: 172 },
+        samples: [{ "sample-type": "1", "recording-rate": 5, data: "10,12,14" }],
       });
     };
     const tasks: Promise<unknown>[] = [];
@@ -351,7 +388,9 @@ describe("POST /webhook", () => {
     assert.equal(row?.started_at, "2024-06-01T07:30:00");
     assert.equal(row?.ended_at, "2024-06-01T08:15:00");
     assert.equal(row?.duration_sec, 2700);
-    assert.equal(row?.distance_m, 8000);
+    assert.equal(row?.distance, 8000);
+    assert.equal(row?.avg_speed, 12);
+    assert.equal(row?.max_speed, 14);
     assert.equal(row?.calories, 610);
     assert.equal(row?.avg_hr, 148);
     assert.equal(row?.max_hr, 172);
@@ -510,10 +549,12 @@ function normalizedFixture(overrides: Partial<NormalizedRecord>): NormalizedReco
     endedAt: null,
     durationSec: null,
     activityType: null,
-    distanceM: null,
+    distance: null,
     calories: null,
     avgHr: null,
     maxHr: null,
+    avgSpeed: null,
+    maxSpeed: null,
     title: null,
     document: { activity_type: overrides.activityType ?? null },
     rawPayload: {},
@@ -525,7 +566,13 @@ function normalizedFixture(overrides: Partial<NormalizedRecord>): NormalizedReco
 
 function createTestDb(): ArchiveDb {
   const sqlite = new DatabaseSync(":memory:");
-  sqlite.exec(readFileSync(join(root, "migrations/0001_init_archive.sql"), "utf8"));
+  for (const file of [
+    "migrations/0001_init_archive.sql",
+    "migrations/0002_canonical_archive.sql",
+    "migrations/0003_activities.sql",
+  ]) {
+    sqlite.exec(readFileSync(join(root, file), "utf8"));
+  }
   return {
     prepare(query: string) {
       const statement = sqlite.prepare(query);

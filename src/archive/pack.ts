@@ -63,10 +63,12 @@ export function packStoredRecord(input: {
     endedAt: normalized.endedAt,
     durationSec: normalized.durationSec,
     activityType: normalized.activityType,
-    distanceM: normalized.distanceM,
+    distance: normalized.distance,
     calories: normalized.calories,
     avgHr: normalized.avgHr,
     maxHr: normalized.maxHr,
+    avgSpeed: normalized.avgSpeed,
+    maxSpeed: normalized.maxSpeed,
     title: normalized.title,
   };
 }

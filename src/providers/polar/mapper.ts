@@ -38,10 +38,11 @@ export function mapPolarEntity(
   const durationSec = parseIso8601DurationSeconds(record ? readString(record, "duration") : null);
   const startedAt = startedAtFrom(record, ingest);
   const endedAt = startedAt && durationSec !== null ? addSeconds(startedAt, durationSec) : null;
-  const distanceM = record ? readNumber(record.distance) : null;
+  const distance = record ? readNumber(record.distance) : null;
   const calories = record ? readInteger(record.calories) : null;
   const avgHr = heart && typeof heart.average === "number" ? Math.round(heart.average) : null;
   const maxHr = heart && typeof heart.maximum === "number" ? Math.round(heart.maximum) : null;
+  const speed = speedFrom(record);
   const title = record ? readString(record, "title", "name") : null;
   const extras = extrasFrom(record);
 
@@ -54,10 +55,12 @@ export function mapPolarEntity(
     ended_at: endedAt,
     duration_sec: durationSec,
     activity_type: activityType,
-    distance_m: distanceM,
+    distance,
     calories,
     avg_hr: avgHr,
     max_hr: maxHr,
+    avg_speed: speed.avg,
+    max_speed: speed.max,
     title,
     extras,
   };
@@ -67,10 +70,12 @@ export function mapPolarEntity(
     endedAt,
     durationSec,
     activityType,
-    distanceM,
+    distance,
     calories,
     avgHr,
     maxHr,
+    avgSpeed: speed.avg,
+    maxSpeed: speed.max,
     title,
     document: canonical,
     rawPayload: payload,
@@ -108,6 +113,66 @@ function startedAtFrom(record: Record<string, unknown> | null, ingest: ArchiveIn
     if (date && /^\d{4}-\d{2}-\d{2}$/.test(date)) return `${date}T00:00:00.000Z`;
   }
   return ingest.startedAt;
+}
+
+/**
+ * AccessLink has no average/max speed fields on the exercise summary.
+ * Speed is sample type 1, in km/h, when samples were requested.
+ * A speed.average / speed.maximum object is used when a provider sends one.
+ */
+function speedFrom(record: Record<string, unknown> | null): { avg: number | null; max: number | null } {
+  if (!record) return { avg: null, max: null };
+  const summary = asRecord(record.speed);
+  const fromSamples = speedFromSamples(record.samples);
+  const avg = readNumber(summary?.average ?? summary?.avg ?? record.avg_speed ?? record.average_speed ?? record["average-speed"]);
+  const max = readNumber(summary?.maximum ?? summary?.max ?? record.max_speed ?? record.maximum_speed ?? record["maximum-speed"]);
+  return {
+    avg: roundSpeed(avg ?? fromSamples.avg),
+    max: roundSpeed(max ?? fromSamples.max),
+  };
+}
+
+function speedFromSamples(samples: unknown): { avg: number | null; max: number | null } {
+  if (!Array.isArray(samples)) return { avg: null, max: null };
+  const values: number[] = [];
+  for (const sample of samples) {
+    const row = asRecord(sample);
+    if (!row || !isSpeedSample(row["sample-type"] ?? row.sample_type)) continue;
+    values.push(...parseSampleSeries(row.data));
+  }
+  if (values.length === 0) return { avg: null, max: null };
+  const sum = values.reduce((total, value) => total + value, 0);
+  return { avg: sum / values.length, max: Math.max(...values) };
+}
+
+function isSpeedSample(sampleType: unknown): boolean {
+  return sampleType === 1 || sampleType === "1";
+}
+
+function parseSampleSeries(data: unknown): number[] {
+  const parts = Array.isArray(data)
+    ? data
+    : typeof data === "string"
+      ? data.split(",")
+      : [];
+  const values: number[] = [];
+  for (const part of parts) {
+    if (typeof part === "number") {
+      if (Number.isFinite(part)) values.push(part);
+      continue;
+    }
+    if (typeof part !== "string") continue;
+    const token = part.trim();
+    if (!token || token.toLowerCase() === "null") continue;
+    const value = Number(token);
+    if (Number.isFinite(value)) values.push(value);
+  }
+  return values;
+}
+
+function roundSpeed(value: number | null): number | null {
+  if (value === null || !Number.isFinite(value)) return null;
+  return Math.round(value * 100) / 100;
 }
 
 function activityTypeFrom(record: Record<string, unknown> | null): string | null {

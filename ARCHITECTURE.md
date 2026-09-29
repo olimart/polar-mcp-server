@@ -20,7 +20,7 @@ Providers are registered in `src/providers/registry.ts`.
 
 OAuth tokens stay in `OAUTH_KV`. The archive never stores access tokens.
 
-## Canonical columns (`archived_records`)
+## Canonical columns (`activities`)
 
 | Column | Meaning |
 | --- | --- |
@@ -37,9 +37,10 @@ OAuth tokens stay in `OAUTH_KV`. The archive never stores access tokens.
 | `started_at` / `ended_at` | Start and end. UTC ISO-8601 when a zone or offset is known; otherwise the provider's local clock string. |
 | `duration_sec` | Duration in seconds. |
 | `activity_type` | Sport or activity label chosen by the mapper. |
-| `distance_m` | Distance in meters. |
+| `distance` | Distance in meters. |
 | `calories` | Energy, provider units (Polar: kilocalories). |
 | `avg_hr` / `max_hr` | Heart rate, beats per minute. |
+| `avg_speed` / `max_speed` | Speed in km/h. Null when the provider did not record a speed series. |
 | `title` | Session title when the provider has one. |
 | `artifacts_json` | Optional files: `{kind, encoding, status, body}`. Polar exercises use `fit` (base64), `tcx`, and `gpx`. |
 | `status` | `pending`, `archived`, `failed`, or `missing_token`. |
@@ -62,9 +63,10 @@ Webhook `event` values become `event_kind` in `src/providers/polar/mapper.ts` (`
 | `started_at` | `start_time` or `start-time`. With `start_time_utc_offset` (minutes) the local clock is converted to UTC. A daily `date` becomes `YYYY-MM-DDT00:00:00.000Z`. |
 | `ended_at` | `started_at` + `duration` |
 | `duration_sec` | ISO-8601 `duration` (`PT45M` → 2700) |
-| `distance_m` | `distance` (meters) |
+| `distance` | `distance` (meters) |
 | `calories` | `calories` |
 | `avg_hr` / `max_hr` | `heart_rate.average` / `maximum`, or kebab-case `heart-rate` |
+| `avg_speed` / `max_speed` | Not on the exercise summary. Computed from sample type `1` (Speed, km/h) when `samples=true`. A `speed.average` / `speed.maximum` object is used if a payload includes one. |
 | `title` | `title` or `name` |
 | `normalized.extras` | `device`, `upload_time`, `has_route`, `training_load`, `steps`, `active_steps`, `calendar_date` |
 

@@ -22,7 +22,7 @@ export async function upsertPending(db: ArchiveDb, ingest: ArchiveIngest, now = 
   const timestamp = nowIso(now);
   await db
     .prepare(
-      `INSERT INTO archived_records (
+      `INSERT INTO activities (
          source, source_user_id, source_entity_id, event_kind,
          occurred_at, source_url, raw_envelope, started_at,
          status, attempts, created_at, updated_at
@@ -31,7 +31,7 @@ export async function upsertPending(db: ArchiveDb, ingest: ArchiveIngest, now = 
          occurred_at = excluded.occurred_at,
          source_url = excluded.source_url,
          raw_envelope = excluded.raw_envelope,
-         started_at = COALESCE(archived_records.started_at, excluded.started_at),
+         started_at = COALESCE(activities.started_at, excluded.started_at),
          status = 'pending',
          error = NULL,
          attempts = 0,
@@ -60,7 +60,7 @@ export async function saveArchived(
 ): Promise<void> {
   await db
     .prepare(
-      `UPDATE archived_records SET
+      `UPDATE activities SET
          raw_payload = ?,
          raw_status = ?,
          normalized = ?,
@@ -68,10 +68,12 @@ export async function saveArchived(
          ended_at = ?,
          duration_sec = ?,
          activity_type = ?,
-         distance_m = ?,
+         distance = ?,
          calories = ?,
          avg_hr = ?,
          max_hr = ?,
+         avg_speed = ?,
+         max_speed = ?,
          title = ?,
          artifacts_json = ?,
          status = 'archived',
@@ -88,10 +90,12 @@ export async function saveArchived(
       packed.endedAt,
       packed.durationSec,
       packed.activityType,
-      packed.distanceM,
+      packed.distance,
       packed.calories,
       packed.avgHr,
       packed.maxHr,
+      packed.avgSpeed,
+      packed.maxSpeed,
       packed.title,
       packed.artifactsJson,
       nowIso(now),
@@ -114,7 +118,7 @@ export async function markArchiveStatus(
   if (status === "missing_token") {
     await db
       .prepare(
-        `UPDATE archived_records SET
+        `UPDATE activities SET
            status = 'missing_token',
            error = ?,
            updated_at = ?
@@ -129,7 +133,7 @@ export async function markArchiveStatus(
   if (options.terminal) {
     await db
       .prepare(
-        `UPDATE archived_records SET
+        `UPDATE activities SET
            status = 'failed',
            error = ?,
            attempts = ?,
@@ -151,7 +155,7 @@ export async function markArchiveStatus(
 
   await db
     .prepare(
-      `UPDATE archived_records SET
+      `UPDATE activities SET
          status = 'failed',
          error = ?,
          attempts = attempts + 1,
@@ -193,9 +197,9 @@ export async function listArchivedRecords(
   const result = await db
     .prepare(
       `SELECT id, source, source_user_id, source_entity_id, event_kind, occurred_at,
-              started_at, ended_at, duration_sec, activity_type, distance_m, calories,
-              avg_hr, max_hr, title, status, error, created_at
-       FROM archived_records
+              started_at, ended_at, duration_sec, activity_type, distance, calories,
+              avg_hr, max_hr, avg_speed, max_speed, title, status, error, created_at
+       FROM activities
        WHERE ${clauses.join(" AND ")}
        ORDER BY COALESCE(started_at, occurred_at) DESC
        LIMIT ?`
@@ -213,9 +217,10 @@ export async function getArchivedRecord(
     .prepare(
       `SELECT id, source, source_user_id, source_entity_id, event_kind, occurred_at, source_url,
               raw_payload, raw_status, normalized, started_at, ended_at, duration_sec,
-              activity_type, distance_m, calories, avg_hr, max_hr, title, artifacts_json,
+              activity_type, distance, calories, avg_hr, max_hr, avg_speed, max_speed,
+              title, artifacts_json,
               status, error, attempts, created_at, updated_at
-       FROM archived_records
+       FROM activities
        WHERE source = ? AND source_user_id = ? AND event_kind = ? AND source_entity_id = ?`
     )
     .bind(query.source, query.sourceUserId, query.eventKind, query.sourceEntityId)
@@ -223,7 +228,7 @@ export async function getArchivedRecord(
 }
 
 const RETRY_COLUMNS = `SELECT source, source_user_id, source_entity_id, event_kind, raw_envelope
-       FROM archived_records`;
+       FROM activities`;
 
 export async function listRetryCandidates(
   db: ArchiveDb,
