@@ -114,10 +114,9 @@ export function addExercise(
   if (distanceMeters > totals.longestMeters) totals.longestMeters = distanceMeters;
 }
 
-/** Kilometers with one decimal, for example `303.1 km`. */
-export function formatKilometers(meters: number): string {
-  const kilometers = Math.round(meters / 100) / 10;
-  return `${kilometers.toFixed(1)} km`;
+/** Kilometers rounded to one decimal. Whole kilometers stay integers (`17`, not `17.0`). */
+export function roundKilometers(meters: number): number {
+  return Math.round(meters / 100) / 10;
 }
 
 export function sportInsights(summary: SportSummary, project = SPORT_PROJECT): LoglyInsight[] {
@@ -128,13 +127,13 @@ export function sportInsights(summary: SportSummary, project = SPORT_PROJECT): L
       {
         project,
         title: `${sport.title} total distance`,
-        value: formatKilometers(totals.totalMeters),
+        value: roundKilometers(totals.totalMeters),
         icon: sport.icon,
       },
       {
         project,
         title: `${sport.title} longest distance`,
-        value: formatKilometers(totals.longestMeters),
+        value: roundKilometers(totals.longestMeters),
         icon: sport.icon,
       },
       {

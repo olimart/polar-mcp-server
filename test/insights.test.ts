@@ -9,7 +9,7 @@ import type { ArchiveDb } from "../src/archive/db.js";
 import { publishLoglyInsights } from "../src/insights/logly.js";
 import { publishSportInsights } from "../src/insights/publish.js";
 import {
-  formatKilometers,
+  roundKilometers,
   sportForActivityType,
   sportInsights,
   emptySportSummary,
@@ -72,17 +72,24 @@ describe("sport classification", () => {
     assert.deepEqual(summary.biking, { totalMeters: 48_000, longestMeters: 40_000, activities: 2 });
     assert.deepEqual(summary["cross-country-ski"], { totalMeters: 25_000, longestMeters: 20_000, activities: 2 });
     assert.deepEqual(summary.swimming, { totalMeters: 3_900, longestMeters: 2_400, activities: 2 });
-    assert.equal(formatKilometers(17_000), "17.0 km");
-    assert.equal(formatKilometers(0), "0.0 km");
+    assert.equal(roundKilometers(17_000), 17);
+    assert.equal(roundKilometers(3_900), 3.9);
+    assert.equal(roundKilometers(150), 0.2);
+    assert.equal(roundKilometers(0), 0);
 
     const insights = sportInsights(summary);
     assert.equal(insights.length, 12);
     assert.deepEqual(insights[0], {
       project: "sport",
       title: "Running total distance",
-      value: "17.0 km",
+      value: 17,
       icon: "🏃",
     });
+    for (const insight of insights) {
+      assert.equal(typeof insight.value, "number");
+      if (insight.title.endsWith("activities")) assert.equal(Number.isInteger(insight.value), true);
+      else assert.equal(insight.value, roundKilometers(insight.value * 1000));
+    }
     assert.equal(insights[2]?.value, 3);
     assert.equal(insights[8]?.title, "Cross-country ski activities");
     assert.equal(insights[11]?.title, "Swimming activities");
@@ -169,17 +176,17 @@ describe("logly publish", () => {
     assert.deepEqual(result, { published: 12 });
     const insights = (posted[0] as { insights: Array<{ title: string; value: string | number }> }).insights;
     const byTitle = Object.fromEntries(insights.map((insight) => [insight.title, insight.value]));
-    assert.equal(byTitle["Running total distance"], "17.0 km");
-    assert.equal(byTitle["Running longest distance"], "12.0 km");
+    assert.equal(byTitle["Running total distance"], 17);
+    assert.equal(byTitle["Running longest distance"], 12);
     assert.equal(byTitle["Running activities"], 3);
-    assert.equal(byTitle["Biking total distance"], "48.0 km");
-    assert.equal(byTitle["Biking longest distance"], "40.0 km");
+    assert.equal(byTitle["Biking total distance"], 48);
+    assert.equal(byTitle["Biking longest distance"], 40);
     assert.equal(byTitle["Biking activities"], 2);
-    assert.equal(byTitle["Cross-country ski total distance"], "20.0 km");
-    assert.equal(byTitle["Cross-country ski longest distance"], "20.0 km");
+    assert.equal(byTitle["Cross-country ski total distance"], 20);
+    assert.equal(byTitle["Cross-country ski longest distance"], 20);
     assert.equal(byTitle["Cross-country ski activities"], 1);
-    assert.equal(byTitle["Swimming total distance"], "3.9 km");
-    assert.equal(byTitle["Swimming longest distance"], "2.4 km");
+    assert.equal(byTitle["Swimming total distance"], 3.9);
+    assert.equal(byTitle["Swimming longest distance"], 2.4);
     assert.equal(byTitle["Swimming activities"], 2);
   });
 
