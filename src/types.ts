@@ -12,6 +12,10 @@ export interface Env {
   POLAR_WEBHOOK_SIGNATURE_SECRET?: string;
   /** Public origin used to show the expected webhook URL. Not a secret. */
   WEBHOOK_BASE_URL?: string;
+  /** Write token for the Logly project `sport`. Worker secret. */
+  LOGLY_TOKEN?: string;
+  /** Logly API origin. Defaults to https://logly.yafoy.com. */
+  LOGLY_BASE_URL?: string;
   OAUTH_KV: KVNamespace;
   ARCHIVE_DB: D1Database;
   MCP_OBJECT: DurableObjectNamespace;

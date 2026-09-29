@@ -24,16 +24,18 @@ bindings = [{ name = "MCP_OBJECT", class_name = "MyMCP" }]
 tag = "v1"
 new_sqlite_classes = ["MyMCP"]
 
-# Retry webhook fetches that failed after Polar was already acknowledged.
+# */15 retries webhook fetches. 0 7 publishes year-to-date sport insights (03:00 EDT).
 [triggers]
-crons = ["*/15 * * * *"]
+crons = ["*/15 * * * *", "0 7 * * *"]
 
 # Secrets (never commit values):
 #   npx wrangler secret put POLAR_CLIENT_ID
 #   npx wrangler secret put POLAR_CLIENT_SECRET
 #   npx wrangler secret put POLAR_WEBHOOK_SIGNATURE_SECRET
+#   npx wrangler secret put LOGLY_TOKEN
 [vars]
 WEBHOOK_BASE_URL = "https://polar-mcp-server.yafoy.workers.dev"
+LOGLY_BASE_URL = "https://logly.yafoy.com"
 
 # Development settings
 [env.dev]
@@ -56,7 +58,8 @@ tag = "v1"
 new_sqlite_classes = ["MyMCP"]
 
 [env.dev.triggers]
-crons = ["*/15 * * * *"]
+crons = ["*/15 * * * *", "0 7 * * *"]
 
 [env.dev.vars]
 WEBHOOK_BASE_URL = "https://polar-mcp-server.yafoy.workers.dev"
+LOGLY_BASE_URL = "https://logly.yafoy.com"

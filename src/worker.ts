@@ -16,6 +16,8 @@ import { PolarHandler } from "./auth/polar-handler.js";
 import { registerArchiveTools } from "./webhook/mcp-tools.js";
 import { retryIncompleteArchives } from "./webhook/retry.js";
 import { sanitizeErrorMessage } from "./archive/errors.js";
+import { logSportInsightFailure, publishSportInsights } from "./insights/publish.js";
+import { isSportInsightsCron } from "./insights/year.js";
 import type { Env, Props } from "./types.js";
 
 export { Env, Props };
@@ -720,7 +722,23 @@ export default {
   fetch(request: Request, env: Env, ctx: ExecutionContext) {
     return oauthProvider.fetch(request, env, ctx);
   },
-  scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext) {
+  scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext) {
+    if (isSportInsightsCron(controller.cron)) {
+      ctx.waitUntil(
+        publishSportInsights({
+          db: env.ARCHIVE_DB,
+          token: env.LOGLY_TOKEN,
+          baseUrl: env.LOGLY_BASE_URL,
+        })
+          .then((result) => {
+            if ("skipped" in result) console.error("sport insights skipped", result.skipped);
+          })
+          .catch((error: unknown) => {
+            logSportInsightFailure(error);
+          })
+      );
+      return;
+    }
     ctx.waitUntil(
       retryIncompleteArchives({
         db: env.ARCHIVE_DB,
