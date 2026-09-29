@@ -2,9 +2,9 @@ import { Hono } from "hono";
 import type { Env } from "../types.js";
 import { registerPolarUser } from "../polar-api.js";
 import { handlePolarWebhook } from "../webhook/handle.js";
-import { sanitizeErrorMessage } from "../webhook/payload.js";
+import { sanitizeErrorMessage } from "../archive/errors.js";
 import { retryUserArchives } from "../webhook/retry.js";
-import { savePolarToken } from "../webhook/token-store.js";
+import { savePolarToken } from "../providers/polar/tokens.js";
 import {
   renderApprovalDialog,
   getUpstreamAuthorizeUrl,

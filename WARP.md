@@ -95,7 +95,7 @@ Both modes share common Polar API helpers and tool definitions.
 
 - `src/worker.ts` – Cloudflare Worker MCP server
   - `MyMCP` registers the same Polar pull tools as the local server, plus archive tools from `src/webhook/mcp-tools.ts`.
-  - OAuth HTML routes live in `src/auth/polar-handler.ts`. Webhook handling lives in `src/webhook/`.
+  - OAuth HTML routes live in `src/auth/polar-handler.ts`. `POST /webhook` is a thin handler in `src/webhook/handle.ts`. Signature checks, AccessLink fetches, and Polar → canonical mapping live in `src/providers/polar/`. D1 writes go through `src/archive/`, which only knows generic columns. See `ARCHITECTURE.md`.
   - The default export forwards `fetch` to `OAuthProvider` and `scheduled` to the archive retry.
 
 - `src/polar-api.ts` – Shared Polar API helpers and tool metadata
@@ -119,7 +119,7 @@ Both modes share common Polar API helpers and tool definitions.
 
 - `tsconfig.worker.json`
   - Worker-specific config using `module: "ESNext"` and `moduleResolution: "bundler"`, with `types: ["@cloudflare/workers-types"]` and `lib: ["ES2022"]`.
-  - Typechecks the Worker entry, auth routes, and webhook modules. Excludes `src/webhook/register-cli.ts` (Node CLI).
+  - Typechecks the Worker entry, auth routes, archive, providers, and webhook modules. Excludes `src/webhook/register-cli.ts` (Node CLI).
 
 ### How to extend the MCP tools safely
 

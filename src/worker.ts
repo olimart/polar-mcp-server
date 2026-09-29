@@ -15,7 +15,7 @@ import { polarApiRequest } from "./polar-api.js";
 import { PolarHandler } from "./auth/polar-handler.js";
 import { registerArchiveTools } from "./webhook/mcp-tools.js";
 import { retryIncompleteArchives } from "./webhook/retry.js";
-import { sanitizeErrorMessage } from "./webhook/payload.js";
+import { sanitizeErrorMessage } from "./archive/errors.js";
 import type { Env, Props } from "./types.js";
 
 export { Env, Props };

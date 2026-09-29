@@ -1,6 +1,7 @@
--- Canonical archive. Column names are provider-neutral.
--- Polar (or a future source) is mapped into these fields before insert.
--- See ARCHITECTURE.md. OAuth tokens stay in OAUTH_KV.
+-- Canonical archive for databases that already applied the first draft of
+-- 0001 (table archived_events, Polar-shaped columns). Fresh installs create
+-- archived_records in 0001; this file is a no-op for that table and drops the
+-- draft table if it is still present.
 
 CREATE TABLE IF NOT EXISTS archived_records (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -37,3 +38,5 @@ CREATE INDEX IF NOT EXISTS idx_archived_records_user_kind_time
 
 CREATE INDEX IF NOT EXISTS idx_archived_records_status
   ON archived_records (status, updated_at);
+
+DROP TABLE IF EXISTS archived_events;

@@ -10,7 +10,7 @@ import {
   SUPPORTED_WEBHOOK_EVENTS,
   isSupportedWebhookEvent,
   type SupportedWebhookEvent,
-} from "./payload.js";
+} from "../providers/polar/webhook.js";
 
 export interface WebhookRegistration {
   id?: string;

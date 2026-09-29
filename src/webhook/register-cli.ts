@@ -24,7 +24,7 @@ import {
   publicWebhookRegistration,
   readWebhookRegistration,
 } from "./polar-webhook-api.js";
-import { DEFAULT_WORKER_ORIGIN, webhookUrlFromOrigin } from "./payload.js";
+import { DEFAULT_WORKER_ORIGIN, webhookUrlFromOrigin } from "../providers/polar/webhook.js";
 
 const SECRET_NAME = "POLAR_WEBHOOK_SIGNATURE_SECRET";
 

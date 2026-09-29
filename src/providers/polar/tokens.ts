@@ -1,14 +1,10 @@
 /**
  * Polar access tokens do not expire. The OAuth provider stores them inside
  * MCP grant props, which webhooks cannot look up by Polar user id.
- * A copy keyed by polar user id lets the webhook worker fetch new data.
  * Never log the stored value.
  */
 
-export interface KvStore {
-  get(key: string): Promise<string | null>;
-  put(key: string, value: string, options?: { expirationTtl?: number }): Promise<void>;
-}
+import type { KvStore } from "../kv.js";
 
 export function polarTokenKey(userId: string | number): string {
   return `polar_token:${userId}`;

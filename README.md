@@ -152,7 +152,9 @@ npm run db:migrate
 npm run db:migrate:local
 ```
 
-Schema lives in `migrations/0001_init_archive.sql`. Rows are keyed by Polar user, event, and entity id (exercise id, or the calendar date for daily events).
+Schema lives in `migrations/0001_init_archive.sql` (and `0002_canonical_archive.sql` if an earlier draft of `0001` already created `archived_events`). Rows use canonical columns — `source`, `source_user_id`, `source_entity_id`, `event_kind`, `started_at`, and so on — plus `raw_payload` and `normalized` JSON. Polar field names are mapped in `src/providers/polar/mapper.ts` before anything is written. See [ARCHITECTURE.md](ARCHITECTURE.md).
+
+If a local database still has the first draft table, run `npm run db:migrate:local` again so `0002` creates `archived_records` and drops `archived_events`.
 
 ### 2. Deploy the receiver first
 
@@ -186,14 +188,14 @@ Users who connected **before** this token copy was stored need to open the MCP a
 
 ### What the worker does
 
-1. Verify the signature (or accept the one-time unsigned PING).
+1. The Polar adapter verifies the signature (or the handler accepts the one-time unsigned PING).
 2. Reject bad signatures (401) and rate-limit repeated failures per IP.
-3. Insert the notification into D1 **before** responding, so a crash does not drop the event.
+3. Normalize the envelope to a canonical ingest and insert that row into D1 **before** responding, so a crash does not drop the event.
 4. Respond `200` quickly.
-5. Fetch the entity with the user's token. Exercises are loaded with `samples` and `zones`, plus FIT, TCX, and GPX when Polar has them. Hostile or non-AccessLink URLs are not fetched.
+5. The adapter fetches the entity with the user's token and maps it onto canonical fields. Exercises are loaded with `samples` and `zones`, plus FIT, TCX, and GPX when Polar has them. Hostile or non-AccessLink URLs are not fetched.
 6. A cron every 15 minutes retries `pending` and `failed` rows for about two hours. Terminal 401/403/404 responses are not retried until the user connects again.
 
-Large exercise samples that would blow past D1's row limit are omitted. The summary and any export that still fits are kept. `exports_json` records what was stored or skipped.
+The repository only writes generic columns. Provider JSON is kept in `raw_payload` (unmodified when it fits). Samples and routes that would blow past D1's row limit are dropped from that JSON (`raw_status` = `trimmed` or `truncated`). FIT, TCX, and GPX are generic artifacts in `artifacts_json`, not Polar-specific columns.
 
 ### MCP tools
 
@@ -201,8 +203,8 @@ These read D1 for the authenticated Polar user. They are registered on the Worke
 
 | Tool | Purpose |
 |------|---------|
-| `list_archived_events` | Recent archived rows. `event` defaults to `EXERCISE`. |
-| `get_archived_event` | One row plus JSON payload. Samples/exports are opt-in. |
+| `list_archived_events` | Recent archived rows. `event` defaults to `exercise` (`EXERCISE` is also accepted). |
+| `get_archived_event` | One row, the normalized document, and the raw provider payload. Samples and artifact bodies are opt-in. |
 | `get_webhook_registration` | Client webhook id, URL, events, and active flag. No signature secret. |
 
 ### Tests and local dry-run
@@ -258,7 +260,7 @@ All tools use the [Polar AccessLink API v3](https://www.polar.com/accesslink-api
 - Polar passwords are never stored
 - OAuth tokens are stored in `OAUTH_KV`: by the Workers OAuth provider for MCP sessions, and as `polar_token:{userId}` so webhooks can fetch new data. Tokens are not written to logs.
 - The webhook signing key is a Worker secret (`POLAR_WEBHOOK_SIGNATURE_SECRET`). It is not in git.
-- Archived fitness data (exercise JSON and optional FIT/TCX/GPX) is stored in the operator's D1 database `ARCHIVE_DB`. That is the point of the archive.
+- Archived fitness data is stored in the operator's D1 database `ARCHIVE_DB` as canonical columns, a normalized document, the provider's raw JSON, and optional artifacts (for Polar: FIT/TCX/GPX). That is the point of the archive.
 - Each user can only read their own archived rows through MCP
 - Webhook handlers do not log tokens, signature secrets, or raw payloads
 

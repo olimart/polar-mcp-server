@@ -6,12 +6,12 @@
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { getArchivedEvent, listArchivedEvents, type ArchiveDb, type ArchivedEventDetail } from "./archive.js";
+import type { ArchiveDb } from "../archive/db.js";
+import type { ArchiveArtifact, ArchiveDetail } from "../archive/model.js";
+import { getArchivedRecord, listArchivedRecords } from "../archive/repository.js";
+import { canonicalEventKind } from "../providers/polar/mapper.js";
+import { DEFAULT_WORKER_ORIGIN, POLAR_SOURCE, webhookUrlFromOrigin } from "../providers/polar/webhook.js";
 import { getWebhookRegistration, publicWebhookRegistration } from "./polar-webhook-api.js";
-import {
-  DEFAULT_WORKER_ORIGIN,
-  webhookUrlFromOrigin,
-} from "./payload.js";
 
 interface ArchiveToolEnv {
   ARCHIVE_DB?: ArchiveDb;
@@ -27,12 +27,12 @@ export function registerArchiveTools(server: McpServer, env: ArchiveToolEnv, use
 
   server.tool(
     "list_archived_events",
-    "List Polar events archived from AccessLink webhooks for the authenticated user. Defaults to EXERCISE. This is the durable copy kept after AccessLink's ~30-day window. Only data uploaded after the user registered with this app is present; older history is not imported.",
+    "List archived events for the authenticated user. Defaults to exercise. Polar names such as EXERCISE are accepted. This is the durable copy kept after AccessLink's ~30-day window. Only data uploaded after the user registered with this app is present; older history is not imported.",
     {
       event: z
         .string()
         .optional()
-        .describe("Event type. Defaults to EXERCISE. ACTIVITY_SUMMARY is also archived when subscribed."),
+        .describe("Canonical event kind (exercise, activity_summary, …). Polar names such as EXERCISE are also accepted. Defaults to exercise."),
       from: z.string().optional().describe("Inclusive start (YYYY-MM-DD or ISO timestamp)."),
       to: z.string().optional().describe("Inclusive end (YYYY-MM-DD or ISO timestamp)."),
       limit: z.number().optional().describe("Max rows (1-100, default 20)."),
@@ -42,9 +42,10 @@ export function registerArchiveTools(server: McpServer, env: ArchiveToolEnv, use
         return errorResult("Archive database is not configured.");
       }
       try {
-        const rows = await listArchivedEvents(env.ARCHIVE_DB, {
-          userId: polarUserId,
-          event: event ?? "EXERCISE",
+        const rows = await listArchivedRecords(env.ARCHIVE_DB, {
+          source: POLAR_SOURCE,
+          sourceUserId: polarUserId,
+          eventKind: canonicalEventKind(event ?? "exercise"),
           from,
           to,
           limit,
@@ -61,10 +62,10 @@ export function registerArchiveTools(server: McpServer, env: ArchiveToolEnv, use
 
   server.tool(
     "get_archived_event",
-    "Get one archived Polar webhook record for the authenticated user, including the stored JSON payload. Exercise samples and route points are omitted unless include_samples is true. FIT/TCX/GPX are omitted unless include_exports is true.",
+    "Get one archived record for the authenticated user, including the stored provider payload and the normalized document. Samples and route points are omitted unless include_samples is true. Artifact bodies (FIT, TCX, GPX, …) are omitted unless include_exports is true.",
     {
-      event: z.string().describe("Event type, for example EXERCISE or ACTIVITY_SUMMARY."),
-      entityId: z.string().describe("Exercise id, or the date (YYYY-MM-DD) for daily events."),
+      event: z.string().describe("Event kind, for example exercise or EXERCISE, or activity_summary."),
+      entityId: z.string().describe("Provider entity id. For Polar exercises this is the exercise id; for daily events it is YYYY-MM-DD."),
       include_samples: z.boolean().optional().describe("Include exercise samples and route arrays. Default false."),
       include_exports: z.boolean().optional().describe("Include stored FIT (base64), TCX, and GPX when they fit in a tool response."),
     },
@@ -73,11 +74,11 @@ export function registerArchiveTools(server: McpServer, env: ArchiveToolEnv, use
         return errorResult("Archive database is not configured.");
       }
       try {
-        const row = await getArchivedEvent(env.ARCHIVE_DB, {
-          userId: polarUserId,
-          event,
-          entityId,
-          includeExports: include_exports === true,
+        const row = await getArchivedRecord(env.ARCHIVE_DB, {
+          source: POLAR_SOURCE,
+          sourceUserId: polarUserId,
+          eventKind: canonicalEventKind(event),
+          sourceEntityId: entityId,
         });
         if (!row) {
           return jsonResult({
@@ -118,22 +119,30 @@ export function registerArchiveTools(server: McpServer, env: ArchiveToolEnv, use
 }
 
 function presentEvent(
-  row: ArchivedEventDetail,
+  row: ArchiveDetail,
   includeSamples: boolean,
   includeExports: boolean
 ): Record<string, unknown> {
-  const { fit_base64, tcx, gpx, payload, ...rest } = row;
-  const presented: Record<string, unknown> = {
+  const { raw_payload, artifacts_json, normalized, ...rest } = row;
+  return {
     ...rest,
-    payload: presentPayload(payload, includeSamples),
-    exports: parseJson(row.exports_json),
+    normalized: parseJson(normalized),
+    raw_payload: presentPayload(raw_payload, includeSamples),
+    artifacts: presentArtifacts(artifacts_json, includeExports),
   };
-  if (includeExports) {
-    presented.fit_base64 = capExport(fit_base64 ?? null);
-    presented.tcx = capExport(tcx ?? null);
-    presented.gpx = capExport(gpx ?? null);
-  }
-  return presented;
+}
+
+function presentArtifacts(value: string | null, includeExports: boolean): unknown {
+  const parsed = parseJson(value);
+  if (!Array.isArray(parsed)) return parsed;
+  return parsed.map((item) => {
+    if (!item || typeof item !== "object") return item;
+    const artifact = item as ArchiveArtifact;
+    if (includeExports) {
+      return { ...artifact, body: capExport(artifact.body ?? null) };
+    }
+    return { kind: artifact.kind, encoding: artifact.encoding, status: artifact.status };
+  });
 }
 
 function presentPayload(payload: string | null, includeSamples: boolean): unknown {
