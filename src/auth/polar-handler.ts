@@ -1,6 +1,10 @@
 import { Hono } from "hono";
 import type { Env } from "../types.js";
 import { registerPolarUser } from "../polar-api.js";
+import { handlePolarWebhook } from "../webhook/handle.js";
+import { sanitizeErrorMessage } from "../webhook/payload.js";
+import { retryUserArchives } from "../webhook/retry.js";
+import { savePolarToken } from "../webhook/token-store.js";
 import {
   renderApprovalDialog,
   getUpstreamAuthorizeUrl,
@@ -10,6 +14,18 @@ import {
 } from "./oauth-utils.js";
 
 const app = new Hono<{ Bindings: Env }>();
+
+app.post("/webhook", (c) => webhookResponse(c));
+app.post("/polar/webhook", (c) => webhookResponse(c));
+
+function webhookResponse(c: { req: { raw: Request }; env: Env; executionCtx: ExecutionContext }) {
+  return handlePolarWebhook(c.req.raw, {
+    signatureSecret: c.env.POLAR_WEBHOOK_SIGNATURE_SECRET,
+    kv: c.env.OAUTH_KV,
+    db: c.env.ARCHIVE_DB,
+    waitUntil: (promise) => c.executionCtx.waitUntil(promise),
+  });
+}
 
 // Landing page
 app.get("/", (c) => {
@@ -99,6 +115,22 @@ app.get("/callback", async (c) => {
   // Register user with Polar AccessLink (ignore if already registered)
   await registerPolarUser(tokenData.access_token, tokenData.x_user_id);
 
+  // Keep a copy keyed by Polar user id so webhooks can fetch new sessions.
+  // The OAuth provider copy is only reachable from an MCP grant.
+  try {
+    await savePolarToken(c.env.OAUTH_KV, tokenData.x_user_id, tokenData.access_token);
+    c.executionCtx.waitUntil(
+      retryUserArchives(
+        { db: c.env.ARCHIVE_DB, kv: c.env.OAUTH_KV },
+        tokenData.x_user_id
+      ).catch((error: unknown) => {
+        console.error("archive backfill after auth failed", sanitizeErrorMessage(error));
+      })
+    );
+  } catch (error) {
+    console.error("failed to store polar token for webhooks", sanitizeErrorMessage(error));
+  }
+
   // Complete the OAuth authorization directly — no redirect workaround needed
   const { redirectTo } = await c.env.OAUTH_PROVIDER.completeAuthorization({
     request: authRequest,
@@ -175,6 +207,10 @@ function landingPageHtml(origin: string): string {
     <div class="feature">
       <h3>Daily Activity</h3>
       <p>Steps, calories, and activity goals</p>
+    </div>
+    <div class="feature">
+      <h3>Archive</h3>
+      <p>Workouts Polar notifies us about after you connect are kept past the 30-day AccessLink window</p>
     </div>
   </div>
 

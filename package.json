@@ -14,6 +14,12 @@
     "auth": "tsx src/auth.ts",
     "deploy": "wrangler deploy",
     "dev:worker": "wrangler dev",
+    "test": "node --import tsx --test test/webhook.test.ts",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.worker.json --noEmit",
+    "webhook:register": "tsx src/webhook/register-cli.ts",
+    "webhook:status": "tsx src/webhook/register-cli.ts --status",
+    "db:migrate": "wrangler d1 migrations apply polar-archive --remote",
+    "db:migrate:local": "wrangler d1 migrations apply polar-archive --local",
     "prepare": "npm run build"
   },
   "keywords": [
