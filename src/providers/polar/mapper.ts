@@ -43,6 +43,7 @@ export function mapPolarEntity(
   const avgHr = heart && typeof heart.average === "number" ? Math.round(heart.average) : null;
   const maxHr = heart && typeof heart.maximum === "number" ? Math.round(heart.maximum) : null;
   const speed = speedFrom(record);
+  const elevation = elevationFrom(record);
   const title = record ? readString(record, "title", "name") : null;
   const extras = extrasFrom(record);
 
@@ -61,6 +62,10 @@ export function mapPolarEntity(
     max_hr: maxHr,
     avg_speed: speed.avg,
     max_speed: speed.max,
+    min_elevation: elevation.min,
+    max_elevation: elevation.max,
+    ascent: elevation.ascent,
+    descent: elevation.descent,
     title,
     extras,
   };
@@ -76,6 +81,10 @@ export function mapPolarEntity(
     maxHr,
     avgSpeed: speed.avg,
     maxSpeed: speed.max,
+    minElevation: elevation.min,
+    maxElevation: elevation.max,
+    ascent: elevation.ascent,
+    descent: elevation.descent,
     title,
     document: canonical,
     rawPayload: payload,
@@ -116,37 +125,75 @@ function startedAtFrom(record: Record<string, unknown> | null, ingest: ArchiveIn
 }
 
 /**
- * AccessLink has no average/max speed fields on the exercise summary.
- * Speed is sample type 1, in km/h, when samples were requested.
- * A speed.average / speed.maximum object is used when a provider sends one.
+ * AccessLink has no average/max speed on the exercise summary.
+ * Speed is sample type 1, in km/h. Altitude is sample type 3, in meters.
+ * A speed or elevation summary object is used when a payload includes one.
  */
 function speedFrom(record: Record<string, unknown> | null): { avg: number | null; max: number | null } {
   if (!record) return { avg: null, max: null };
   const summary = asRecord(record.speed);
-  const fromSamples = speedFromSamples(record.samples);
+  const values = samplesOfType(record.samples, 1);
+  const fromSamples =
+    values.length === 0
+      ? { avg: null, max: null }
+      : { avg: values.reduce((total, value) => total + value, 0) / values.length, max: Math.max(...values) };
   const avg = readNumber(summary?.average ?? summary?.avg ?? record.avg_speed ?? record.average_speed ?? record["average-speed"]);
   const max = readNumber(summary?.maximum ?? summary?.max ?? record.max_speed ?? record.maximum_speed ?? record["maximum-speed"]);
   return {
-    avg: roundSpeed(avg ?? fromSamples.avg),
-    max: roundSpeed(max ?? fromSamples.max),
+    avg: round2(avg ?? fromSamples.avg),
+    max: round2(max ?? fromSamples.max),
   };
 }
 
-function speedFromSamples(samples: unknown): { avg: number | null; max: number | null } {
-  if (!Array.isArray(samples)) return { avg: null, max: null };
+function elevationFrom(record: Record<string, unknown> | null): {
+  min: number | null;
+  max: number | null;
+  ascent: number | null;
+  descent: number | null;
+} {
+  const empty = { min: null, max: null, ascent: null, descent: null };
+  if (!record) return empty;
+  const stats = elevationStats(samplesOfType(record.samples, 3));
+  return {
+    min: round2(readNumber(record.min_elevation ?? record.minimum_altitude ?? record["min-altitude"]) ?? stats.min),
+    max: round2(readNumber(record.max_elevation ?? record.maximum_altitude ?? record["max-altitude"]) ?? stats.max),
+    ascent: round2(readNumber(record.ascent ?? record.elevation_gain ?? record["elevation-gain"]) ?? stats.ascent),
+    descent: round2(readNumber(record.descent ?? record.elevation_loss ?? record["elevation-loss"]) ?? stats.descent),
+  };
+}
+
+function elevationStats(values: number[]): {
+  min: number | null;
+  max: number | null;
+  ascent: number | null;
+  descent: number | null;
+} {
+  if (values.length === 0) return { min: null, max: null, ascent: null, descent: null };
+  let min = values[0];
+  let max = values[0];
+  let ascent = 0;
+  let descent = 0;
+  for (let i = 1; i < values.length; i++) {
+    const delta = values[i] - values[i - 1];
+    if (delta > 0) ascent += delta;
+    else descent -= delta;
+    if (values[i] < min) min = values[i];
+    if (values[i] > max) max = values[i];
+  }
+  return { min, max, ascent, descent };
+}
+
+function samplesOfType(samples: unknown, type: number): number[] {
+  if (!Array.isArray(samples)) return [];
   const values: number[] = [];
   for (const sample of samples) {
     const row = asRecord(sample);
-    if (!row || !isSpeedSample(row["sample-type"] ?? row.sample_type)) continue;
+    if (!row) continue;
+    const sampleType = row["sample-type"] ?? row.sample_type;
+    if (sampleType !== type && sampleType !== String(type)) continue;
     values.push(...parseSampleSeries(row.data));
   }
-  if (values.length === 0) return { avg: null, max: null };
-  const sum = values.reduce((total, value) => total + value, 0);
-  return { avg: sum / values.length, max: Math.max(...values) };
-}
-
-function isSpeedSample(sampleType: unknown): boolean {
-  return sampleType === 1 || sampleType === "1";
+  return values;
 }
 
 function parseSampleSeries(data: unknown): number[] {
@@ -170,7 +217,7 @@ function parseSampleSeries(data: unknown): number[] {
   return values;
 }
 
-function roundSpeed(value: number | null): number | null {
+function round2(value: number | null): number | null {
   if (value === null || !Number.isFinite(value)) return null;
   return Math.round(value * 100) / 100;
 }

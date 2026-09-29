@@ -42,6 +42,12 @@ export interface NormalizedRecord {
   avgSpeed: number | null;
   /** Kilometers per hour. */
   maxSpeed: number | null;
+  /** Altitude in meters, from the altitude series. */
+  minElevation: number | null;
+  maxElevation: number | null;
+  /** Meters climbed and descended, summed from the altitude series. */
+  ascent: number | null;
+  descent: number | null;
   title: string | null;
   /** Self-contained canonical document stored in the normalized column. */
   document: Record<string, unknown>;
@@ -67,6 +73,10 @@ export interface PackedRecord {
   maxHr: number | null;
   avgSpeed: number | null;
   maxSpeed: number | null;
+  minElevation: number | null;
+  maxElevation: number | null;
+  ascent: number | null;
+  descent: number | null;
   title: string | null;
 }
 
@@ -87,6 +97,10 @@ export interface ArchiveListItem {
   max_hr: number | null;
   avg_speed: number | null;
   max_speed: number | null;
+  min_elevation: number | null;
+  max_elevation: number | null;
+  ascent: number | null;
+  descent: number | null;
   title: string | null;
   status: string;
   error: string | null;

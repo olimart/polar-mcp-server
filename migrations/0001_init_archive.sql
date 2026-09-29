@@ -2,7 +2,8 @@
 -- Polar (or a future source) is mapped into these fields before insert.
 -- See ARCHITECTURE.md. OAuth tokens stay in OAUTH_KV.
 --
--- distance is meters. avg_speed and max_speed are km/h.
+-- distance, min_elevation, max_elevation, ascent, and descent are meters.
+-- avg_speed and max_speed are km/h.
 
 CREATE TABLE IF NOT EXISTS activities (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -26,6 +27,10 @@ CREATE TABLE IF NOT EXISTS activities (
   max_hr INTEGER,
   avg_speed REAL,
   max_speed REAL,
+  min_elevation REAL,
+  max_elevation REAL,
+  ascent REAL,
+  descent REAL,
   title TEXT,
   artifacts_json TEXT,
   status TEXT NOT NULL,

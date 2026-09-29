@@ -154,7 +154,7 @@ npm run db:migrate:local
 
 Schema lives in `migrations/0001_init_archive.sql`. The table is `activities`. Rows use canonical columns — `source`, `source_user_id`, `source_entity_id`, `event_kind`, `started_at`, `distance` (meters), `avg_speed` / `max_speed` (km/h), and so on — plus `raw_payload` and `normalized` JSON. Polar field names are mapped in `src/providers/polar/mapper.ts` before anything is written. See [ARCHITECTURE.md](ARCHITECTURE.md).
 
-There is a single migration. If a local database already applied an earlier draft of this file, delete `.wrangler/state/v3/d1` and run `npm run db:migrate:local` again. Polar’s exercise summary has no speed stats. `avg_speed` and `max_speed` come from the speed sample series (sample type 1, km/h), which is included because the exercise fetch asks for `samples=true`.
+There is a single migration. If a local database already applied an earlier draft of this file, delete `.wrangler/state/v3/d1` and run `npm run db:migrate:local` again. The exercise fetch asks for `samples=true`. Speed (sample type 1, km/h) becomes `avg_speed` and `max_speed`. Altitude (sample type 3, meters) becomes `min_elevation`, `max_elevation`, `ascent`, and `descent`. FIT, TCX, and GPX are stored and not parsed.
 
 ### 2. Deploy the receiver first
 

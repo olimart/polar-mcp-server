@@ -69,6 +69,10 @@ export function packStoredRecord(input: {
     maxHr: normalized.maxHr,
     avgSpeed: normalized.avgSpeed,
     maxSpeed: normalized.maxSpeed,
+    minElevation: normalized.minElevation,
+    maxElevation: normalized.maxElevation,
+    ascent: normalized.ascent,
+    descent: normalized.descent,
     title: normalized.title,
   };
 }

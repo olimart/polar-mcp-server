@@ -137,6 +137,8 @@ describe("webhook payloads", () => {
     assert.equal(mapped.distance, 1600);
     assert.equal(mapped.avgSpeed, null);
     assert.equal(mapped.maxSpeed, null);
+    assert.equal(mapped.ascent, null);
+    assert.equal(mapped.minElevation, null);
     assert.equal(mapped.calories, 530);
     assert.equal(mapped.avgHr, 129);
     assert.equal(mapped.maxHr, 147);
@@ -169,12 +171,17 @@ describe("webhook payloads", () => {
         samples: [
           { "sample-type": "0", data: "140,150" },
           { "sample-type": "1", data: "10,null,20,30" },
+          { "sample-type": "3", data: "100,120,105,130" },
         ],
       },
       []
     );
     assert.equal(withSamples.avgSpeed, 20);
     assert.equal(withSamples.maxSpeed, 30);
+    assert.equal(withSamples.minElevation, 100);
+    assert.equal(withSamples.maxElevation, 130);
+    assert.equal(withSamples.ascent, 45);
+    assert.equal(withSamples.descent, 15);
 
     const summarized = mapPolarEntity(
       ingest,
@@ -261,6 +268,9 @@ describe("archive database", () => {
     assert.ok(names.includes("distance"));
     assert.ok(names.includes("avg_speed"));
     assert.ok(names.includes("max_speed"));
+    assert.ok(names.includes("min_elevation"));
+    assert.ok(names.includes("ascent"));
+    assert.ok(names.includes("descent"));
     assert.equal(names.includes("distance_m"), false);
     assert.equal(names.includes("polar_user_id"), false);
     assert.equal(names.includes("fit_base64"), false);
@@ -346,7 +356,10 @@ describe("POST /webhook", () => {
         distance: 8000,
         calories: 610,
         heart_rate: { average: 148, maximum: 172 },
-        samples: [{ "sample-type": "1", "recording-rate": 5, data: "10,12,14" }],
+        samples: [
+          { "sample-type": "1", "recording-rate": 5, data: "10,12,14" },
+          { "sample-type": "3", "recording-rate": 5, data: "100,120,90" },
+        ],
       });
     };
     const tasks: Promise<unknown>[] = [];
@@ -386,6 +399,10 @@ describe("POST /webhook", () => {
     assert.equal(row?.distance, 8000);
     assert.equal(row?.avg_speed, 12);
     assert.equal(row?.max_speed, 14);
+    assert.equal(row?.min_elevation, 90);
+    assert.equal(row?.max_elevation, 120);
+    assert.equal(row?.ascent, 20);
+    assert.equal(row?.descent, 30);
     assert.equal(row?.calories, 610);
     assert.equal(row?.avg_hr, 148);
     assert.equal(row?.max_hr, 172);
@@ -550,6 +567,10 @@ function normalizedFixture(overrides: Partial<NormalizedRecord>): NormalizedReco
     maxHr: null,
     avgSpeed: null,
     maxSpeed: null,
+    minElevation: null,
+    maxElevation: null,
+    ascent: null,
+    descent: null,
     title: null,
     document: { activity_type: overrides.activityType ?? null },
     rawPayload: {},

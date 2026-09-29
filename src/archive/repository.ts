@@ -74,6 +74,10 @@ export async function saveArchived(
          max_hr = ?,
          avg_speed = ?,
          max_speed = ?,
+         min_elevation = ?,
+         max_elevation = ?,
+         ascent = ?,
+         descent = ?,
          title = ?,
          artifacts_json = ?,
          status = 'archived',
@@ -96,6 +100,10 @@ export async function saveArchived(
       packed.maxHr,
       packed.avgSpeed,
       packed.maxSpeed,
+      packed.minElevation,
+      packed.maxElevation,
+      packed.ascent,
+      packed.descent,
       packed.title,
       packed.artifactsJson,
       nowIso(now),
@@ -198,7 +206,8 @@ export async function listArchivedRecords(
     .prepare(
       `SELECT id, source, source_user_id, source_entity_id, event_kind, occurred_at,
               started_at, ended_at, duration_sec, activity_type, distance, calories,
-              avg_hr, max_hr, avg_speed, max_speed, title, status, error, created_at
+              avg_hr, max_hr, avg_speed, max_speed, min_elevation, max_elevation,
+              ascent, descent, title, status, error, created_at
        FROM activities
        WHERE ${clauses.join(" AND ")}
        ORDER BY COALESCE(started_at, occurred_at) DESC
@@ -218,7 +227,7 @@ export async function getArchivedRecord(
       `SELECT id, source, source_user_id, source_entity_id, event_kind, occurred_at, source_url,
               raw_payload, raw_status, normalized, started_at, ended_at, duration_sec,
               activity_type, distance, calories, avg_hr, max_hr, avg_speed, max_speed,
-              title, artifacts_json,
+              min_elevation, max_elevation, ascent, descent, title, artifacts_json,
               status, error, attempts, created_at, updated_at
        FROM activities
        WHERE source = ? AND source_user_id = ? AND event_kind = ? AND source_entity_id = ?`

@@ -41,6 +41,8 @@ OAuth tokens stay in `OAUTH_KV`. The archive never stores access tokens.
 | `calories` | Energy, provider units (Polar: kilocalories). |
 | `avg_hr` / `max_hr` | Heart rate, beats per minute. |
 | `avg_speed` / `max_speed` | Speed in km/h. Null when the provider did not record a speed series. |
+| `min_elevation` / `max_elevation` | Altitude in meters. |
+| `ascent` / `descent` | Meters climbed and descended, summed from successive altitude samples. |
 | `title` | Session title when the provider has one. |
 | `artifacts_json` | Optional files: `{kind, encoding, status, body}`. Polar exercises use `fit` (base64), `tcx`, and `gpx`. |
 | `status` | `pending`, `archived`, `failed`, or `missing_token`. |
@@ -67,6 +69,7 @@ Webhook `event` values become `event_kind` in `src/providers/polar/mapper.ts` (`
 | `calories` | `calories` |
 | `avg_hr` / `max_hr` | `heart_rate.average` / `maximum`, or kebab-case `heart-rate` |
 | `avg_speed` / `max_speed` | Speed sample series, type `1`, unit km/h. The exercise summary has no speed stats. Heart-rate zones, route points, and `running-index` are not speeds. A `speed.average` / `speed.maximum` object is used if a payload includes one. |
+| `min_elevation` / `max_elevation` / `ascent` / `descent` | Altitude sample series, type `3`, unit meters. Route points have no altitude. Ascent and descent are the sums of upward and downward steps in that series. FIT, TCX, and GPX are not parsed. |
 | `title` | `title` or `name` |
 | `normalized.extras` | `device`, `upload_time`, `has_route`, `training_load`, `steps`, `active_steps`, `calendar_date` |
 
