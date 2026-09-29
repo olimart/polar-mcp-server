@@ -79,9 +79,7 @@ npm install
 npx wrangler kv namespace create OAUTH_KV
 # Copy the ID to wrangler.toml
 
-# Create the D1 archive and apply the schema
-npx wrangler d1 create polar-archive
-# Copy database_id into wrangler.toml (binding ARCHIVE_DB)
+# Apply the schema to the D1 database already set in wrangler.toml
 npm run db:migrate
 
 # Set secrets
@@ -142,7 +140,7 @@ Polar allows **one webhook per client**. `signature_secret_key` is returned only
 npx wrangler d1 create polar-archive
 ```
 
-Paste the printed `database_id` into `wrangler.toml` under `[[d1_databases]]` (`binding = "ARCHIVE_DB"`). The placeholder `00000000-0000-0000-0000-000000000000` will not deploy.
+The production binding in `wrangler.toml` (`ARCHIVE_DB`, database `polar-archive`) uses database id `90e88692-5151-464e-95b5-25f93c91b913`. The `env.dev` binding is still a placeholder.
 
 ```bash
 # Remote (production)
