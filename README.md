@@ -192,7 +192,7 @@ Users who connected **before** this token copy was stored need to open the MCP a
 4. Respond `200` quickly.
 5. The adapter fetches the entity with the user's token and maps it onto canonical fields. Exercises are loaded with `samples` and `zones`, plus FIT, TCX, and GPX when Polar has them. Hostile or non-AccessLink URLs are not fetched.
 6. A cron every 15 minutes retries `pending` and `failed` rows for about two hours. Terminal 401/403/404 responses are not retried until the user connects again.
-7. A daily cron (`0 7 * * *`, 03:00 EDT / 02:00 EST) publishes year-to-date running, biking, cross-country ski, and swimming insights to the Logly project `sport`. Counters use `America/Toronto` and reset on January 1. Each sport sends total distance, longest distance, and activity count. Set a write token with `npx wrangler secret put LOGLY_TOKEN`. The archive is the source, because AccessLink only keeps about 30 days.
+7. A daily cron (`0 7 * * *`, 03:00 EDT / 02:00 EST) publishes year-to-date running, biking, cross-country ski, and swimming insights to the Logly project `sport`. Counters use `America/Toronto` and reset on January 1. Each sport sends total distance, longest distance, and activity count, then a titled row break so the next sport starts on a new row. Set a write token with `npx wrangler secret put LOGLY_TOKEN`. The archive is the source, because AccessLink only keeps about 30 days.
 
 The repository only writes generic columns. Provider JSON is kept in `raw_payload` (unmodified when it fits). Samples and routes that would blow past D1's row limit are dropped from that JSON (`raw_status` = `trimmed` or `truncated`). FIT, TCX, and GPX are generic artifacts in `artifacts_json`, not Polar-specific columns.
 

@@ -70,12 +70,21 @@ export interface SportTotals {
 
 export type SportSummary = Record<SportId, SportTotals>;
 
-export interface LoglyInsight {
+export interface LoglyInsightCard {
   project: string;
   title: string;
   value: string | number;
   icon: string;
 }
+
+/** Row break. The same title updates that break on later publishes. */
+export interface LoglyInsightReturn {
+  project: string;
+  return: true;
+  title: string;
+}
+
+export type LoglyInsight = LoglyInsightCard | LoglyInsightReturn;
 
 export function normalizeActivityType(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -141,6 +150,11 @@ export function sportInsights(summary: SportSummary, project = SPORT_PROJECT): L
         title: `${sport.title} activities`,
         value: totals.activities,
         icon: sport.icon,
+      },
+      {
+        project,
+        return: true,
+        title: sport.title,
       }
     );
   }
