@@ -42,13 +42,16 @@ async function postJson(
 ): Promise<{ response: Response; body: string }> {
   const response = await fetchImpl(url, {
     method: "POST",
-    redirect: "error",
+    redirect: "manual",
     headers: {
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify(payload),
   });
+  if (response.status >= 300 && response.status < 400) {
+    return { response, body: `Logly redirected to ${response.headers.get("location") ?? "another URL"}` };
+  }
   const body = await response.text();
   return { response, body };
 }

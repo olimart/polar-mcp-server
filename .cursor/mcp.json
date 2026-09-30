@@ -1,0 +1,7 @@
+{
+  "mcpServers": {
+    "polar": {
+      "url": "https://polar-mcp-server.yafoy.workers.dev/mcp"
+    }
+  }
+}
