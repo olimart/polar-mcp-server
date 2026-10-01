@@ -78,7 +78,7 @@ describe("sport classification", () => {
     assert.equal(roundKilometers(0), 0);
 
     const insights = sportInsights(summary);
-    assert.equal(insights.length, 16);
+    assert.equal(insights.length, 15);
     assert.deepEqual(insights[0], {
       project: "sport",
       title: "Running total distance",
@@ -101,7 +101,7 @@ describe("sport classification", () => {
     assert.equal(insights[10]?.title, "Cross-country ski activities");
     assert.deepEqual(insights[11], { project: "sport", return: true, title: "Cross-country ski" });
     assert.equal(insights[14]?.title, "Swimming activities");
-    assert.deepEqual(insights[15], { project: "sport", return: true, title: "Swimming" });
+    assert.equal("return" in insights[14], false);
   });
 });
 
@@ -182,7 +182,7 @@ describe("logly publish", () => {
       fetchImpl,
     });
 
-    assert.deepEqual(result, { published: 16 });
+    assert.deepEqual(result, { published: 15 });
     const insights = (posted[0] as { insights: Array<{ title: string; value: string | number }> }).insights;
     const byTitle = Object.fromEntries(insights.map((insight) => [insight.title, insight.value]));
     assert.equal(byTitle["Running total distance"], 17);

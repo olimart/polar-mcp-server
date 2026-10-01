@@ -130,7 +130,7 @@ export function roundKilometers(meters: number): number {
 
 export function sportInsights(summary: SportSummary, project = SPORT_PROJECT): LoglyInsight[] {
   const insights: LoglyInsight[] = [];
-  for (const sport of SPORTS) {
+  for (const [index, sport] of SPORTS.entries()) {
     const totals = summary[sport.id];
     insights.push(
       {
@@ -150,13 +150,15 @@ export function sportInsights(summary: SportSummary, project = SPORT_PROJECT): L
         title: `${sport.title} activities`,
         value: totals.activities,
         icon: sport.icon,
-      },
-      {
+      }
+    );
+    if (index < SPORTS.length - 1) {
+      insights.push({
         project,
         return: true,
         title: sport.title,
-      }
-    );
+      });
+    }
   }
   return insights;
 }
